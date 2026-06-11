@@ -1,0 +1,16 @@
+name: tg-bug-opros
+
+services:
+  bot:
+    container_name: tg-bug-opros-bot
+    build: .
+    env_file: .env
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
+    networks:
+      - default
+
+networks:
+  default:
+    name: tg-bug-opros-network
