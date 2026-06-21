@@ -203,11 +203,19 @@ docker compose up -d --build
 
 ## Тесты
 
-Минимальный набор тестов на «чистую» логику (конфиг, фразы, БД, экспорт):
-
 ```bash
 pip install -r requirements-dev.txt
 pytest
+```
+
+Полный набор (хендлеры, storage, таймауты — с моками `aiogram`/redis) требует
+установленного `aiogram`. Если локальная версия Python слишком новая для колёс
+`aiogram`, тесты этих модулей автоматически пропускаются. Прогнать всё можно в
+контейнере на Python 3.12:
+
+```bash
+docker run --rm -v "$PWD":/app -w /app python:3.12-slim \
+  sh -c "pip install -q -r requirements-dev.txt && pytest -q"
 ```
 
 ## Лицензия
