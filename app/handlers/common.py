@@ -9,7 +9,8 @@ from app.config import ADMIN_IDS
 from app.states import SurveyStates
 from app.phrases import get_system, get_question_text
 from app.keyboards import admin_menu_keyboard, remove_keyboard
-from app.handlers.survey import _cancel_timeout, _reset_timeout
+from app.handlers.survey import release_lock
+from app import timeouts
 
 router = Router()
 
@@ -29,7 +30,8 @@ async def cmd_start(message: Message, state: FSMContext, bot: Bot) -> None:
         return
 
     # Cancel any existing timeout for this user
-    _cancel_timeout(telegram_id)
+    await timeouts.cancel(telegram_id)
+    release_lock(telegram_id)
 
     # User — check if already in survey (restart warning)
     current_state = await state.get_state()
@@ -46,7 +48,6 @@ async def cmd_start(message: Message, state: FSMContext, bot: Bot) -> None:
         answers=[],
         q4_texts=[],
         q4_files=[],
-        media_group_processed=set(),
     )
     await message.answer(
         get_system("welcome") + "\n\n" + get_question_text(1),
@@ -54,4 +55,4 @@ async def cmd_start(message: Message, state: FSMContext, bot: Bot) -> None:
     )
 
     # Start timeout for the new session
-    _reset_timeout(telegram_id, state, bot, message.chat.id)
+    await timeouts.touch(message.chat.id)

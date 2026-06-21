@@ -7,10 +7,14 @@ from typing import Any
 
 _phrases: dict[str, Any] = {}
 
+# phrases.json sits at the project root, next to the app/ package.
+_DEFAULT_PHRASES_PATH = Path(__file__).resolve().parent.parent / "phrases.json"
 
-def load_phrases(path: Path | str = "phrases.json") -> None:
+
+def load_phrases(path: Path | str | None = None) -> None:
     """Load phrases from JSON file. Called once at bot startup."""
     global _phrases
+    path = path or _DEFAULT_PHRASES_PATH
     with open(path, "r", encoding="utf-8") as f:
         _phrases = json.load(f)
 

@@ -1,16 +1,44 @@
-name: tg-bug-opros
+# All resource names are namespaced by COMPOSE_PROJECT_NAME (set in .env),
+# so this stack never collides with other bots running on the same server.
+# The bot uses Telegram long-polling and publishes NO ports.
 
 services:
   bot:
-    container_name: tg-bug-opros-bot
+    container_name: ${COMPOSE_PROJECT_NAME:-tg-bug-opros}-bot
     build: .
     env_file: .env
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      DATA_DIR: /app/data
     volumes:
       - ./data:/app/data
+    depends_on:
+      redis:
+        condition: service_healthy
     restart: unless-stopped
-    networks:
-      - default
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
-networks:
-  default:
-    name: tg-bug-opros-network
+  redis:
+    container_name: ${COMPOSE_PROJECT_NAME:-tg-bug-opros}-redis
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  redis-data:

@@ -4,13 +4,15 @@ import asyncio
 import logging
 
 from aiogram import Bot, Dispatcher, Router
-from aiogram.fsm.storage.memory import MemoryStorage
-from aiogram.types import Message
+from aiogram.fsm.storage.redis import RedisStorage
+from aiogram.types import Message, ErrorEvent
 from aiogram.fsm.context import FSMContext
 
-from app.config import BOT_TOKEN, ADMIN_IDS, DATA_DIR
+from app.config import BOT_TOKEN, ADMIN_IDS, DATA_DIR, REDIS_URL
 from app.phrases import load_phrases, get_system
 from app.db import init_db
+from app.storage import cleanup_tmp
+from app import timeouts
 from app.handlers import common, survey, admin
 
 logging.basicConfig(
@@ -21,8 +23,9 @@ logger = logging.getLogger(__name__)
 
 
 async def main() -> None:
-    # Ensure data directory exists
+    # Ensure data directory exists and clear any temp leftovers from a crash.
     DATA_DIR.mkdir(parents=True, exist_ok=True)
+    cleanup_tmp()
 
     # Load phrases
     load_phrases()
@@ -30,10 +33,13 @@ async def main() -> None:
     # Initialize database
     await init_db()
 
-    # Create bot and dispatcher
+    # Create bot and dispatcher (Redis-backed FSM survives restarts)
     bot = Bot(token=BOT_TOKEN)
-    storage = MemoryStorage()
+    storage = RedisStorage.from_url(REDIS_URL)
     dp = Dispatcher(storage=storage)
+
+    # Inactivity timeouts (Redis-backed sweeper — survives restarts)
+    timeouts.manager = timeouts.TimeoutManager(bot, storage, storage.redis)
 
     # Register routers (order matters!)
     # 1. Common (handles /start — highest priority)
@@ -55,9 +61,25 @@ async def main() -> None:
 
     dp.include_router(fallback_router)
 
+    @dp.errors()
+    async def on_error(event: ErrorEvent) -> bool:
+        """Log any unhandled exception so one bad update can't crash the bot."""
+        logger.exception("Unhandled update error", exc_info=event.exception)
+        return True  # mark as handled
+
     logger.info("Bot starting...")
-    await dp.start_polling(bot)
+    timeouts.manager.start()
+    try:
+        await dp.start_polling(bot)
+    finally:
+        await timeouts.manager.stop()
+        await storage.close()
+        await bot.session.close()
+        logger.info("Bot stopped.")
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except (KeyboardInterrupt, SystemExit):
+        pass

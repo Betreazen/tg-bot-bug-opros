@@ -9,10 +9,22 @@ from app.config import DATA_DIR
 
 DB_PATH: Path = DATA_DIR / "bot.db"
 
+# Wait this long (ms) for a competing writer to release the lock instead of
+# failing immediately with "database is locked".
+_BUSY_TIMEOUT_MS = 5000
+
 
 async def init_db() -> None:
     """Create tables if they don't exist."""
     async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(f"PRAGMA busy_timeout = {_BUSY_TIMEOUT_MS}")
+        # Dedicated monotonic sequence for internal_id. AUTOINCREMENT guarantees
+        # IDs are never reused, even if a user row is deleted later.
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS internal_ids (
+                id INTEGER PRIMARY KEY AUTOINCREMENT
+            )
+        """)
         await db.execute("""
             CREATE TABLE IF NOT EXISTS users (
                 telegram_id     INTEGER PRIMARY KEY,
@@ -41,6 +53,7 @@ async def complete_submission(telegram_id: int) -> tuple[int, int]:
     now = datetime.now(timezone.utc).isoformat()
 
     async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(f"PRAGMA busy_timeout = {_BUSY_TIMEOUT_MS}")
         await db.execute("BEGIN IMMEDIATE")
         try:
             cursor = await db.execute(
@@ -50,12 +63,11 @@ async def complete_submission(telegram_id: int) -> tuple[int, int]:
             row = await cursor.fetchone()
 
             if row is None:
-                # New user — assign next internal_id
+                # New user — draw a fresh, never-reused internal_id.
                 cursor = await db.execute(
-                    "SELECT COALESCE(MAX(internal_id), 0) + 1 FROM users"
+                    "INSERT INTO internal_ids DEFAULT VALUES"
                 )
-                next_id_row = await cursor.fetchone()
-                internal_id = next_id_row[0]
+                internal_id = cursor.lastrowid
                 request_no = 1
 
                 await db.execute(
