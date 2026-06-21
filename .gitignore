@@ -1,6 +1,8 @@
 data/
+_test_data/
 .env
 __pycache__/
 *.pyc
+.pytest_cache/
 .idea/
 .vscode/

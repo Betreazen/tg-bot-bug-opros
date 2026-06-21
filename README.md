@@ -201,6 +201,15 @@ docker compose restart
 docker compose up -d --build
 ```
 
+## Тесты
+
+Минимальный набор тестов на «чистую» логику (конфиг, фразы, БД, экспорт):
+
+```bash
+pip install -r requirements-dev.txt
+pytest
+```
+
 ## Лицензия
 
 MIT
