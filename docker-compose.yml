@@ -4,10 +4,13 @@
 
 services:
   bot:
+    mem_limit: 400m
     container_name: ${COMPOSE_PROJECT_NAME:-tg-bug-opros}-bot
     build: .
     env_file: .env
     environment:
+      # glibc резервирует память про запас на каждый поток Python; 2 арены заметно снижают аппетит.
+      MALLOC_ARENA_MAX: "2"
       REDIS_URL: redis://redis:6379/0
       DATA_DIR: /app/data
     volumes:
@@ -23,6 +26,7 @@ services:
         max-file: "3"
 
   redis:
+    mem_limit: 128m
     container_name: ${COMPOSE_PROJECT_NAME:-tg-bug-opros}-redis
     image: redis:7-alpine
     command: ["redis-server", "--appendonly", "yes"]
