@@ -221,3 +221,6 @@ docker run --rm -v "$PWD":/app -w /app python:3.12-slim \
 ## Лицензия
 
 MIT
+## Operations
+
+See [deployment, resource limits and rollback](OPERATIONS.md).

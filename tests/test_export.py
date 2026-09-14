@@ -19,6 +19,8 @@ def test_excludes_db_and_tmp(tmp_path, monkeypatch):
     data = _make_data(tmp_path, monkeypatch)
 
     (data / "bot.db").write_text("db", encoding="utf-8")
+    for suffix in ("-wal", "-shm", "-journal"):
+        (data / f"bot.db{suffix}").write_text("private database data", encoding="utf-8")
     tmp = data / "_tmp"
     tmp.mkdir()
     (tmp / "junk.txt").write_text("junk", encoding="utf-8")

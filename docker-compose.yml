@@ -5,6 +5,7 @@
 services:
   bot:
     mem_limit: 400m
+    memswap_limit: 800m
     container_name: ${COMPOSE_PROJECT_NAME:-tg-bug-opros}-bot
     build: .
     env_file: .env
@@ -27,6 +28,7 @@ services:
 
   redis:
     mem_limit: 128m
+    memswap_limit: 256m
     container_name: ${COMPOSE_PROJECT_NAME:-tg-bug-opros}-redis
     image: redis:7-alpine
     command: ["redis-server", "--appendonly", "yes"]

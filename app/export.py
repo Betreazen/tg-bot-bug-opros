@@ -26,9 +26,9 @@ def build_export_zip() -> tuple[Path | None, bool]:
     has_content = False
     try:
         with zipfile.ZipFile(tmp_path, "w", zipfile.ZIP_DEFLATED) as zf:
-            for path in sorted(DATA_DIR.rglob("*")):
+            for path in DATA_DIR.rglob("*"):
                 # Skip bot.db, the temp staging area, and non-files.
-                if path.name == "bot.db":
+                if path.name in {"bot.db", "bot.db-wal", "bot.db-shm", "bot.db-journal"}:
                     continue
                 if not path.is_file():
                     continue
